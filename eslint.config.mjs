@@ -15,13 +15,13 @@ export default tseslint.config(
   },
   // Hexagonal architecture: dependencies point inwards.
   {
-    files: ['src/**/domain/**/*.ts'],
+    files: ['src/**/domain/**/*.ts', 'src/shared/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           patterns: [
-            { group: ['@nestjs/*', '@prisma/*'], message: 'The domain must be framework-free.' },
+            { group: ['@nestjs/*', '@prisma/*', 'class-validator', 'class-transformer'], message: 'The domain must be framework-free.' },
             { group: ['**/application/**', '**/infrastructure/**'], message: 'The domain cannot depend on outer layers.' },
           ],
         },
@@ -36,6 +36,7 @@ export default tseslint.config(
         {
           patterns: [
             { group: ['@prisma/*', '**/prisma/**'], message: 'Use a port; Prisma belongs to infrastructure.' },
+            { group: ['class-validator', 'class-transformer'], message: 'Request validation belongs to infrastructure DTOs.' },
             { group: ['**/infrastructure/**'], message: 'The application layer cannot depend on infrastructure.' },
           ],
         },

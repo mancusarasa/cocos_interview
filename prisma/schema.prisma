@@ -38,7 +38,7 @@ model Order {
   instrumentId Int       @map("instrumentid")
   userId       Int       @map("userid")
   size         Int
-  price        Decimal?  @db.Decimal(10, 2)
+  price        Decimal   @db.Decimal(10, 2)
   type         String    @db.VarChar(10)
   side         String    @db.VarChar(10)
   status       String    @db.VarChar(20)

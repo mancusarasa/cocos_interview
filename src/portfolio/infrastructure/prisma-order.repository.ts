@@ -14,23 +14,14 @@ export class PrismaOrderRepository implements OrderRepositoryPort {
       orderBy: [{ datetime: 'asc' }, { id: 'asc' }],
     });
 
-    return rows.map((row) => {
-      const side = row.side as OrderSide;
-      const isCash = side === 'CASH_IN' || side === 'CASH_OUT';
-      if (!isCash && row.price === null) {
-        // A FILLED BUY/SELL without price cannot be valued: fail loudly.
-        throw new Error(`FILLED order ${row.id} has no price`);
-      }
-      return {
-        instrumentId: row.instrumentId,
-        ticker: row.instrument.ticker,
-        name: row.instrument.name,
-        instrumentType: row.instrument.type,
-        side,
-        size: row.size,
-        // Cash movements use `size` only, price is irrelevant for them.
-        price: row.price?.toNumber() ?? 0,
-      };
-    });
+    return rows.map((row) => ({
+      instrumentId: row.instrumentId,
+      ticker: row.instrument.ticker,
+      name: row.instrument.name,
+      instrumentType: row.instrument.type,
+      side: row.side as OrderSide,
+      size: row.size,
+      price: row.price.toNumber(),
+    }));
   }
 }
