@@ -54,9 +54,9 @@ The challenge allows adjusting the provided schema if justified. Changes made di
 
 | Change | Why |
 |---|---|
-| `NOT NULL` on all columns of `users`, `instruments`, `orders` (except `orders.price`) and on `marketdata.instrumentId`, `close`, `previousClose`, `date` | The application cannot work without them; Prisma then types them as required, and orders can no longer be orphaned from a user/instrument. |
+| `NOT NULL` on all columns of `users`, `instruments`, `orders` and on `marketdata.instrumentId`, `close`, `previousClose`, `date` | The application cannot work without them; Prisma then types them as required, and orders can no longer be orphaned from a user/instrument. |
 | `marketdata.open/high/low` stay nullable | The seed has NULLs there (instruments 12 and 53 on 2023-07-13). |
-| `orders.price` stays nullable | Pending decision on how MARKET orders store their execution price. |
+| `orders.price` is `NOT NULL` | Every order stores its price: MARKET orders the latest close they were checked/executed at (also when `REJECTED`), LIMIT orders the user's price. Existing databases need `make db-reset` (or `ALTER TABLE orders ALTER COLUMN price SET NOT NULL`). |
 | `UNIQUE` on `users.email`, `users.accountNumber`, `instruments.ticker` | Natural keys; ticker uniqueness also backs the instrument search. |
 | `UNIQUE (marketdata.instrumentId, date)` | One price row per instrument per day; also serves the "latest close" lookup. |
 | `CHECK` on `orders.type`, `side`, `status`, `size > 0`, `price >= 0` | Encodes the allowed values and invariants from the challenge. Prisma does not model `CHECK` constraints, so they exist only in SQL. |
@@ -134,3 +134,37 @@ PostgreSQL by a replication mechanism:
 
 A cheaper intermediate step, if the table grows moderately, is a `pg_trgm` GIN index on `ticker`/`name`, which makes
 `ILIKE '%term%'` index-assisted without adding new infrastructure.
+
+## `POST /orders`
+
+Submits a BUY or SELL order. Body:
+
+```json
+{ "userId": 1, "instrumentId": 47, "side": "BUY", "type": "MARKET", "size": 10 }
+{ "userId": 1, "instrumentId": 47, "side": "SELL", "type": "LIMIT", "amount": 10000, "price": 900 }
+```
+
+- `side`: `BUY` | `SELL`; `type`: `MARKET` | `LIMIT`.
+- Exactly one of `size` (integer > 0, exact shares) or `amount` (pesos to invest; the system orders `floor(amount / price)`
+  whole shares, no fractions).
+- `price` (> 0, at most 2 decimals) is required for `LIMIT` and ignored for `MARKET`.
+
+Response `201` with the stored order (`id`, `userId`, `instrumentId`, `side`, `type`, `size`, `price`, `status`, `datetime`).
+Errors: `400` invalid input (including both/neither of `size`|`amount`, an `amount` too small for one share, trading the
+cash instrument), `404` unknown user or instrument, `422` MARKET order for an instrument without market data.
+
+Rules and assumptions:
+- **MARKET** orders execute immediately at the `close` of the latest `marketdata` row -> `FILLED`.
+- **LIMIT** orders are stored as `NEW`. The market is not simulated, so they stay `NEW` (until the cancel feature exists).
+- **Funds validation** (MARKET and LIMIT): a BUY needs `size * price` pesos available, a SELL needs at least `size` shares
+  (a zero or negative position can never sell). Otherwise the order is stored as `REJECTED` and the response is still
+  `201`: the order exists, check `status`. Spending exactly the available cash is allowed.
+- Available cash and shares are computed from `FILLED` orders only (`src/shared/ledger.ts`, shared with the portfolio).
+  `NEW` orders do not reserve cash or shares.
+- Executed orders update the positions automatically: the portfolio is derived from the `FILLED` orders.
+- **Concurrency**: the funds check and the insert run in one transaction after locking the user row
+  (`SELECT ... FOR UPDATE`), so concurrent orders of the same user are serialized and cannot overspend.
+- Invalid requests (400/404/422) are not stored.
+- Not covered by this endpoint: cancelling `NEW` orders and cash transfers (`CASH_IN`/`CASH_OUT`).
+- Tests: `src/orders/application/place-order.use-case.spec.ts` is the functional test of the order submission (use case and
+  domain rules with in-memory adapters); `test/orders.e2e-spec.ts` covers the HTTP layer.
