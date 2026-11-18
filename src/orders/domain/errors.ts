@@ -27,3 +27,21 @@ export class MarketPriceUnavailableError extends Error {
     this.name = 'MarketPriceUnavailableError';
   }
 }
+
+export class OrderNotFoundError extends Error {
+  constructor(public readonly orderId: number) {
+    super(`Order ${orderId} not found`);
+    this.name = 'OrderNotFoundError';
+  }
+}
+
+/** Only NEW orders can be cancelled. */
+export class OrderNotCancellableError extends Error {
+  constructor(
+    public readonly orderId: number,
+    public readonly status: string,
+  ) {
+    super(`Order ${orderId} is ${status}; only NEW orders can be cancelled`);
+    this.name = 'OrderNotCancellableError';
+  }
+}

@@ -6,7 +6,7 @@ import {
   OrderPlacementPort,
 } from '../application/ports/order-placement.port';
 import { UserNotFoundError } from '../domain/errors';
-import { OrderStatus, OrderType, TradeSide } from '../domain/order';
+import { toPlacedOrder } from './order.mapper';
 
 @Injectable()
 export class PrismaOrderPlacementRepository implements OrderPlacementPort {
@@ -39,17 +39,7 @@ export class PrismaOrderPlacementRepository implements OrderPlacementPort {
         },
         save: async (order) => {
           const row = await tx.order.create({ data: order });
-          return {
-            id: row.id,
-            userId: row.userId,
-            instrumentId: row.instrumentId,
-            side: row.side as TradeSide,
-            type: row.type as OrderType,
-            size: row.size,
-            price: row.price.toNumber(),
-            status: row.status as OrderStatus,
-            datetime: row.datetime,
-          };
+          return toPlacedOrder(row);
         },
       });
     });
