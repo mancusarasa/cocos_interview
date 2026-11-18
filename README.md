@@ -66,3 +66,36 @@ Note: the seed inserts 8-decimal prices into `NUMERIC(10,2)` columns, so Postgre
 
 Known data quirk: user 1 has a FILLED SELL of 30 units of instrument 31 but only 20 FILLED BUY units, so the
 net position is -10. The portfolio keeps it as a negative position (computed from all FILLED orders).
+
+## Architecture (hexagonal)
+
+Code is organised feature-first; each feature has three layers and dependencies only point inwards
+(`infrastructure -> application -> domain`, enforced by ESLint `no-restricted-imports`):
+
+```
+src/<feature>/
+  domain/          pure TypeScript: types, business rules, errors (no Nest, no Prisma)
+  application/     use cases + ports (interfaces and injection tokens the use cases need)
+  infrastructure/  adapters: HTTP controllers (driving) and Prisma repositories (driven)
+  <feature>.module.ts   wires ports to adapters ({ provide: TOKEN, useClass: PrismaXRepository })
+```
+
+`src/prisma/` is the shared PrismaClient provider. Tests: the domain and use cases are unit-tested without
+Nest/DB; e2e tests override `PrismaService` and the repository tokens with in-memory fakes.
+
+## `GET /users/:userId/portfolio`
+
+Returns `userId`, `totalValue`, `availableCash` and `positions[]` (`instrumentId`, `ticker`, `name`, `quantity`,
+`marketValue`, `totalReturnPct`). `404` for an unknown user, `400` for a non-numeric id.
+
+Assumptions:
+- Only `FILLED` orders count (`NEW`, `CANCELLED`, `REJECTED` are ignored).
+- Cash: `CASH_IN`/`CASH_OUT` move `size` pesos; `BUY`/`SELL` move `size * price`.
+- Position quantity = sum(BUY) - sum(SELL). Zero positions are omitted; **negative positions are kept** (see the
+  data quirk above) with `totalReturnPct: null`, since a return over cost is not meaningful for them.
+- `marketValue = quantity * close` using the latest `marketdata` row per instrument.
+- `totalReturnPct = (close - avgBuyCost) / avgBuyCost * 100`, where `avgBuyCost` is the weighted average price of the
+  FILLED BUYs (total return, not the daily return).
+- `totalValue = availableCash + sum(marketValue)`. Amounts are rounded to 2 decimals.
+- An instrument with no market data is left out of the positions (and logged); a user without orders gets zeros.
+- A FILLED BUY/SELL with a NULL price is treated as corrupt data and makes the request fail.
