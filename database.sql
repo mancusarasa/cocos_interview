@@ -2,7 +2,8 @@
 -- Schema improvements over the provided baseline (justified in README.md):
 --  * NOT NULL on columns the application cannot work without. marketdata.open/high/low
 --    stay nullable because the seed data has NULLs there (instruments 12 and 53).
---  * orders.price stays nullable for now (undecided how MARKET orders store it).
+--  * orders.price is NOT NULL: every order stores its price (MARKET: the latest close used,
+--    LIMIT: the user's price), including REJECTED ones.
 --  * UNIQUE / CHECK constraints encode the business rules from the challenge.
 --  * Indexes for the portfolio (orders by user/status) and latest-price queries.
 
@@ -24,7 +25,7 @@ CREATE TABLE orders (
   instrumentId INT NOT NULL,
   userId INT NOT NULL,
   size INT NOT NULL CHECK (size > 0),
-  price NUMERIC(10, 2) CHECK (price >= 0),
+  price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
   type VARCHAR(10) NOT NULL CHECK (type IN ('MARKET', 'LIMIT')),
   side VARCHAR(10) NOT NULL CHECK (side IN ('BUY', 'SELL', 'CASH_IN', 'CASH_OUT')),
   status VARCHAR(20) NOT NULL CHECK (status IN ('NEW', 'FILLED', 'REJECTED', 'CANCELLED')),
