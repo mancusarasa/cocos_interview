@@ -1,41 +1,51 @@
 
+-- Schema improvements over the provided baseline (justified in README.md):
+--  * NOT NULL on columns the application cannot work without. marketdata.open/high/low
+--    stay nullable because the seed data has NULLs there (instruments 12 and 53).
+--  * orders.price stays nullable for now (undecided how MARKET orders store it).
+--  * UNIQUE / CHECK constraints encode the business rules from the challenge.
+--  * Indexes for the portfolio (orders by user/status) and latest-price queries.
+
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
-  email VARCHAR(255),
-  accountNumber VARCHAR(20)
+  email VARCHAR(255) NOT NULL UNIQUE,
+  accountNumber VARCHAR(20) NOT NULL UNIQUE
 );
 
 CREATE TABLE instruments (
   id SERIAL PRIMARY KEY,
-  ticker VARCHAR(10),
-  name VARCHAR(255),
-  type VARCHAR(10)
+  ticker VARCHAR(10) NOT NULL UNIQUE,
+  name VARCHAR(255) NOT NULL,
+  type VARCHAR(10) NOT NULL
 );
 
 CREATE TABLE orders (
   id SERIAL PRIMARY KEY,
-  instrumentId INT,
-  userId INT,
-  size INT,
-  price NUMERIC(10, 2),
-  type VARCHAR(10),
-  side VARCHAR(10),
-  status VARCHAR(20),
-  datetime TIMESTAMP,
+  instrumentId INT NOT NULL,
+  userId INT NOT NULL,
+  size INT NOT NULL CHECK (size > 0),
+  price NUMERIC(10, 2) CHECK (price >= 0),
+  type VARCHAR(10) NOT NULL CHECK (type IN ('MARKET', 'LIMIT')),
+  side VARCHAR(10) NOT NULL CHECK (side IN ('BUY', 'SELL', 'CASH_IN', 'CASH_OUT')),
+  status VARCHAR(20) NOT NULL CHECK (status IN ('NEW', 'FILLED', 'REJECTED', 'CANCELLED')),
+  datetime TIMESTAMP NOT NULL,
   FOREIGN KEY (instrumentId) REFERENCES instruments(id),
   FOREIGN KEY (userId) REFERENCES users(id)
 );
 
+CREATE INDEX idx_orders_user_status ON orders (userId, status);
+
 CREATE TABLE marketdata (
   id SERIAL PRIMARY KEY,
-  instrumentId INT,
+  instrumentId INT NOT NULL,
   high NUMERIC(10, 2),
   low NUMERIC(10, 2),
   open NUMERIC(10, 2),
-  close NUMERIC(10, 2),
-  previousClose NUMERIC(10, 2),
-  date DATE,
-  FOREIGN KEY (instrumentId) REFERENCES instruments(id)
+  close NUMERIC(10, 2) NOT NULL,
+  previousClose NUMERIC(10, 2) NOT NULL,
+  date DATE NOT NULL,
+  FOREIGN KEY (instrumentId) REFERENCES instruments(id),
+  CONSTRAINT uq_marketdata_instrument_date UNIQUE (instrumentId, date)
 );
 
 INSERT INTO users (email,accountNumber) VALUES
