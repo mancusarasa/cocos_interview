@@ -99,3 +99,18 @@ Assumptions:
 - `totalValue = availableCash + sum(marketValue)`. Amounts are rounded to 2 decimals.
 - An instrument with no market data is left out of the positions (and logged); a user without orders gets zeros.
 - A FILLED BUY/SELL with a NULL price is treated as corrupt data and makes the request fail.
+
+## `GET /instruments?search=<term>&page=<n>&pageSize=<n>`
+
+Searches instruments ("activos") by ticker or name. Response: `{ items: [{ id, ticker, name, type }], page, pageSize, total, totalPages }`.
+
+Decisions:
+- `search` is required (trimmed); missing/blank -> `400`.
+- Case-insensitive substring match on ticker **or** name (`PAMP`, `pamp`, `pampa` all find PAMP). `%`, `_` and `\` in the term are
+  matched literally (Prisma's `contains` does not escape them, so the adapter does).
+- The cash instrument (ARS, type `MONEDA`) is excluded: only tradable instruments are returned.
+- Results are ordered by `ticker` (then `id`), so pages are stable.
+- Pagination: `page` >= 1 (default 1), `pageSize` 1..50 (default 10). Invalid or non-numeric values -> `400`;
+  a page past the end is valid and returns empty `items`. `totalPages = ceil(total / pageSize)`.
+- Performance: `ILIKE '%term%'` cannot use a btree index; with 65 instruments that is irrelevant. At scale, a `pg_trgm` GIN
+  index on `ticker`/`name` would be the next step.
