@@ -15,7 +15,7 @@ export default tseslint.config(
   },
   // Hexagonal architecture: dependencies point inwards.
   {
-    files: ['src/**/domain/**/*.ts'],
+    files: ['src/**/domain/**/*.ts', 'src/shared/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
