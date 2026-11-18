@@ -112,5 +112,25 @@ Decisions:
 - Results are ordered by `ticker` (then `id`), so pages are stable.
 - Pagination: `page` >= 1 (default 1), `pageSize` 1..50 (default 10). Invalid or non-numeric values -> `400`;
   a page past the end is valid and returns empty `items`. `totalPages = ceil(total / pageSize)`.
-- Performance: `ILIKE '%term%'` cannot use a btree index; with 65 instruments that is irrelevant. At scale, a `pg_trgm` GIN
-  index on `ticker`/`name` would be the next step.
+- Performance: see "Search scalability" below.
+
+### Search scalability (known limitation, not implemented)
+
+The search runs `ILIKE '%term%'` against PostgreSQL. A leading wildcard cannot use a btree index, so each query scans
+the whole `instruments` table. With the 65 instruments of this challenge that is irrelevant, but with a large table the
+response times would degrade as the table grows (and `count(*)` for the pagination total adds to the cost).
+
+A solution that scales is to serve the search from a reverse (inverted) index such as OpenSearch, kept in sync with
+PostgreSQL by a replication mechanism:
+- PostgreSQL stays the source of truth. Changes to `instruments` are replicated to an OpenSearch index (for example with
+  change data capture on the table, or an outbox table consumed by a worker), so the index is eventually consistent.
+- The index analyzes `ticker` and `name` (case folding, accent folding, prefix/n-gram tokens), which makes searches fast
+  regardless of table size and allows relevance ranking (e.g. exact ticker first) and typo tolerance.
+- Thanks to the hexagonal architecture the change is contained: add an adapter that implements
+  `InstrumentRepositoryPort.searchTradable` with OpenSearch queries and bind it to `INSTRUMENT_REPOSITORY` in
+  `instruments.module.ts`. The use case, controller and API contract do not change.
+- Trade-off: extra infrastructure to operate and a short replication lag, so a just-created instrument may take a moment to
+  show up in the search results.
+
+A cheaper intermediate step, if the table grows moderately, is a `pg_trgm` GIN index on `ticker`/`name`, which makes
+`ILIKE '%term%'` index-assisted without adding new infrastructure.
