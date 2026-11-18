@@ -13,4 +13,33 @@ export default tseslint.config(
       globals: { ...globals.node, ...globals.jest },
     },
   },
+  // Hexagonal architecture: dependencies point inwards.
+  {
+    files: ['src/**/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['@nestjs/*', '@prisma/*'], message: 'The domain must be framework-free.' },
+            { group: ['**/application/**', '**/infrastructure/**'], message: 'The domain cannot depend on outer layers.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/**/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['@prisma/*', '**/prisma/**'], message: 'Use a port; Prisma belongs to infrastructure.' },
+            { group: ['**/infrastructure/**'], message: 'The application layer cannot depend on infrastructure.' },
+          ],
+        },
+      ],
+    },
+  },
 );
