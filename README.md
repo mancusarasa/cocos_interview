@@ -175,6 +175,22 @@ Rules and assumptions:
 - **Concurrency**: the funds check and the insert run in one transaction after locking the user row
   (`SELECT ... FOR UPDATE`), so concurrent orders of the same user are serialized and cannot overspend.
 - Invalid requests (400/404/422) are not stored.
-- Not covered by this endpoint: cancelling `NEW` orders and cash transfers (`CASH_IN`/`CASH_OUT`).
+- Not covered by this endpoint: cash transfers (`CASH_IN`/`CASH_OUT`). `NEW` orders are cancelled with
+  `DELETE /orders/:orderId` (below).
 - Tests: `src/orders/application/place-order.use-case.spec.ts` is the functional test of the order submission (use case and
   domain rules with in-memory adapters); `test/orders.e2e-spec.ts` covers the HTTP layer.
+
+## `DELETE /orders/:orderId`
+
+Cancels an order whose status is `NEW` (a LIMIT order waiting for its price).
+
+- The order is **not deleted**: it is kept with status `CANCELLED` (and its original `datetime`) and returned with
+  `200`. Using `DELETE` for a cancellation follows the convention of trading APIs such as Alpaca and Binance.
+- `409` if the order is not `NEW` (`FILLED`, `REJECTED` or already `CANCELLED`); the message includes its current
+  status, e.g. `Order 2 is FILLED; only NEW orders can be cancelled`. `404` for an unknown order, `400` for a
+  non-numeric id.
+- The cancellation is a single conditional update (`NEW` -> `CANCELLED` only if the order is still `NEW`), so
+  concurrent cancels of the same order cannot both succeed: exactly one gets `200`, the rest `409`.
+- `NEW` orders do not reserve cash or shares, so cancelling one does not change the user's portfolio.
+- Known limitation: there is no authentication (per the challenge), so any caller can cancel any order by id, the
+  same trust model as `POST /orders`, which takes the `userId` from the body.

@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { INSTRUMENT_REPOSITORY } from '../src/orders/application/ports/instrument.repository.port';
 import { MARKET_PRICE_REPOSITORY } from '../src/orders/application/ports/market-price.repository.port';
+import { ORDER_CANCELLATION } from '../src/orders/application/ports/order-cancellation.port';
 import { ORDER_PLACEMENT } from '../src/orders/application/ports/order-placement.port';
 import { buildFakes } from '../src/orders/testing/in-memory-ports';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -19,6 +20,8 @@ describe('POST /orders (e2e)', () => {
       .overrideProvider(PrismaService)
       .useValue(prismaStub)
       .overrideProvider(ORDER_PLACEMENT)
+      .useValue(fakes.placement)
+      .overrideProvider(ORDER_CANCELLATION)
       .useValue(fakes.placement)
       .overrideProvider(INSTRUMENT_REPOSITORY)
       .useValue(fakes.instruments)
@@ -161,4 +164,57 @@ describe('POST /orders (e2e)', () => {
       .set('Content-Type', 'application/json')
       .send('{not json')
       .expect(400));
+
+  describe('DELETE /orders/:orderId', () => {
+    const del = (id: string | number) =>
+      request(app.getHttpServer()).delete(`/orders/${id}`);
+
+    const placeLimit = async () => {
+      const res = await post({
+        userId: 1,
+        instrumentId: 47,
+        side: 'BUY',
+        type: 'LIMIT',
+        size: 5,
+        price: 900,
+      }).expect(201);
+      return res.body as { id: number; status: string };
+    };
+
+    it('200: cancels a NEW order and returns it', async () => {
+      const placed = await placeLimit();
+      const res = await del(placed.id).expect(200);
+      expect(res.body).toMatchObject({
+        id: placed.id,
+        status: 'CANCELLED',
+        type: 'LIMIT',
+        size: 5,
+        price: 900,
+      });
+    });
+
+    it('409: cancelling the same order twice', async () => {
+      const placed = await placeLimit();
+      await del(placed.id).expect(200);
+      const res = await del(placed.id).expect(409);
+      expect(res.body.message).toBe(
+        `Order ${placed.id} is CANCELLED; only NEW orders can be cancelled`,
+      );
+    });
+
+    it('409: cancelling a FILLED order', async () => {
+      const res = await post({
+        userId: 1,
+        instrumentId: 47,
+        side: 'BUY',
+        type: 'MARKET',
+        size: 1,
+      }).expect(201);
+      await del(res.body.id).expect(409);
+    });
+
+    it('404: unknown order', () => del(999).expect(404));
+
+    it('400: non-numeric id', () => del('abc').expect(400));
+  });
 });

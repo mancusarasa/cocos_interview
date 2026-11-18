@@ -1,6 +1,7 @@
 import { LedgerEntry } from '../../shared/ledger';
 import { InstrumentRepositoryPort } from '../application/ports/instrument.repository.port';
 import { MarketPriceRepositoryPort } from '../application/ports/market-price.repository.port';
+import { OrderCancellationPort } from '../application/ports/order-cancellation.port';
 import {
   OrderLedger,
   OrderPlacementPort,
@@ -9,15 +10,43 @@ import { UserNotFoundError } from '../domain/errors';
 import { NewOrder, PlacedOrder } from '../domain/order';
 
 /**
- * In-memory adapters for tests (unit and e2e). FILLED orders become ledger entries
- * right away, so later orders see their effect, like with the real database.
+ * In-memory orders store for tests (unit and e2e), implementing both the placement and
+ * the cancellation ports. FILLED orders become ledger entries right away, so later
+ * orders see their effect, like with the real database.
  */
-export class InMemoryOrderPlacement implements OrderPlacementPort {
-  /** Every order saved so far, whatever its status. */
+export class InMemoryOrderPlacement
+  implements OrderPlacementPort, OrderCancellationPort
+{
+  /** Every order saved so far, whatever its status (current state). */
   readonly saved: PlacedOrder[] = [];
   private nextId = 1;
 
   constructor(private readonly users: Map<number, LedgerEntry[]>) {}
+
+  /** Adds an existing order as is (e.g. a FILLED or REJECTED fixture), without ledger effects. */
+  seed(order: Omit<PlacedOrder, 'id'>): PlacedOrder {
+    const placed: PlacedOrder = { ...order, id: this.nextId++ };
+    this.saved.push(placed);
+    return { ...placed };
+  }
+
+  async cancelIfNew(orderId: number): Promise<PlacedOrder | null> {
+    const index = this.saved.findIndex(
+      (o) => o.id === orderId && o.status === 'NEW',
+    );
+    if (index === -1) return null;
+    const cancelled: PlacedOrder = {
+      ...this.saved[index],
+      status: 'CANCELLED',
+    };
+    this.saved[index] = cancelled;
+    return { ...cancelled };
+  }
+
+  async findById(orderId: number): Promise<PlacedOrder | null> {
+    const order = this.saved.find((o) => o.id === orderId);
+    return order ? { ...order } : null;
+  }
 
   async withUserLock<T>(
     userId: number,
@@ -30,7 +59,7 @@ export class InMemoryOrderPlacement implements OrderPlacementPort {
       findFilledEntries: async () => [...entries],
       save: async (order: NewOrder) => {
         const placed: PlacedOrder = { ...order, id: this.nextId++ };
-        this.saved.push(placed);
+        this.saved.push({ ...placed });
         if (placed.status === 'FILLED') {
           entries.push({
             instrumentId: placed.instrumentId,
