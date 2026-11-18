@@ -1,3 +1,4 @@
+import { availableCash, round2 } from '../../shared/ledger';
 import { FilledOrder } from './filled-order';
 import { Portfolio, Position } from './portfolio';
 
@@ -9,10 +10,6 @@ export interface PortfolioCalculation {
   unpricedInstrumentIds: number[];
 }
 
-/** Rounds to 2 decimals (and normalizes -0 to 0). */
-const round2 = (n: number): number =>
-  Math.round((n + Number.EPSILON) * 100) / 100 + 0;
-
 /**
  * Pure portfolio calculation from FILLED orders and latest closing prices.
  * - cash: CASH_IN/CASH_OUT move `size` pesos; BUY/SELL move `size * price`.
@@ -23,8 +20,6 @@ export function calculatePortfolio(
   filledOrders: FilledOrder[],
   latestCloses: ReadonlyMap<number, number>,
 ): PortfolioCalculation {
-  let cash = 0;
-
   interface Acc {
     ticker: string;
     name: string;
@@ -35,20 +30,8 @@ export function calculatePortfolio(
   const byInstrument = new Map<number, Acc>();
 
   for (const o of filledOrders) {
-    switch (o.side) {
-      case 'CASH_IN':
-        cash += o.size;
-        continue;
-      case 'CASH_OUT':
-        cash -= o.size;
-        continue;
-      case 'BUY':
-        cash -= o.size * o.price;
-        break;
-      case 'SELL':
-        cash += o.size * o.price;
-        break;
-    }
+    // Cash movements only affect the available cash (see availableCash below).
+    if (o.side !== 'BUY' && o.side !== 'SELL') continue;
 
     if (o.instrumentType === CASH_INSTRUMENT_TYPE) continue;
 
@@ -99,13 +82,13 @@ export function calculatePortfolio(
 
   positions.sort((a, b) => a.instrumentId - b.instrumentId);
 
-  const availableCash = round2(cash);
+  const cash = round2(availableCash(filledOrders));
   const totalValue = round2(
-    availableCash + positions.reduce((sum, p) => sum + p.marketValue, 0),
+    cash + positions.reduce((sum, p) => sum + p.marketValue, 0),
   );
 
   return {
-    portfolio: { totalValue, availableCash, positions },
+    portfolio: { totalValue, availableCash: cash, positions },
     unpricedInstrumentIds,
   };
 }
