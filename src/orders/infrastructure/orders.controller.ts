@@ -6,6 +6,7 @@ import {
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { bodyValidationPipe } from '../../common/validation/validation-pipes';
 import { PlaceOrderUseCase } from '../application/place-order.use-case';
 import {
   InstrumentNotFoundError,
@@ -14,6 +15,7 @@ import {
   UserNotFoundError,
 } from '../domain/errors';
 import { PlacedOrder } from '../domain/order';
+import { PlaceOrderDto, toPlaceOrderCommand } from './place-order.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -21,9 +23,11 @@ export class OrdersController {
 
   /** 201 with the stored order, also when it ends up REJECTED (see `status`). */
   @Post()
-  async create(@Body() body: unknown): Promise<PlacedOrder> {
+  async create(
+    @Body(bodyValidationPipe) dto: PlaceOrderDto,
+  ): Promise<PlacedOrder> {
     try {
-      return await this.placeOrder.execute(body);
+      return await this.placeOrder.execute(toPlaceOrderCommand(dto));
     } catch (e) {
       if (e instanceof InvalidOrderError) {
         throw new BadRequestException(e.message);

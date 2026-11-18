@@ -83,6 +83,16 @@ src/<feature>/
 `src/prisma/` is the shared PrismaClient provider. Tests: the domain and use cases are unit-tested without
 Nest/DB; e2e tests override `PrismaService` and the repository tokens with in-memory fakes.
 
+Request validation is an adapter concern: each controller receives a DTO class (`infrastructure/*.dto.ts`,
+`*.query.ts`) validated by class-validator through the pipes in `src/common/validation/`, and maps it to a typed
+command for the use case (e.g. `PlaceOrderCommand`, a discriminated union where MARKET orders have no price and LIMIT
+orders always have one). Use cases and the domain never see raw input; they only enforce business rules.
+ESLint forbids `class-validator` / `class-transformer` imports in `domain/` and `application/`.
+
+Invalid input returns `400` in the `ValidationPipe` format, with one message per field:
+`{ "statusCode": 400, "error": "Bad Request", "message": ["size must be an integer number"] }`. Unknown body fields are
+rejected (`property foo should not exist`); unknown query params are ignored.
+
 ## `GET /users/:userId/portfolio`
 
 Returns `userId`, `totalValue`, `availableCash` and `positions[]` (`instrumentId`, `ticker`, `name`, `quantity`,

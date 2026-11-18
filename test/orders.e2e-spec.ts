@@ -86,6 +86,21 @@ describe('POST /orders (e2e)', () => {
   it.each([
     ['empty body', {}],
     [
+      'string size',
+      { userId: 1, instrumentId: 47, side: 'BUY', type: 'MARKET', size: '3' },
+    ],
+    [
+      'unknown field',
+      {
+        userId: 1,
+        instrumentId: 47,
+        side: 'BUY',
+        type: 'MARKET',
+        size: 1,
+        foo: 1,
+      },
+    ],
+    [
       'both size and amount',
       {
         userId: 1,

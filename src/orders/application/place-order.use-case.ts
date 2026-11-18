@@ -4,12 +4,13 @@ import {
   InvalidOrderError,
   MarketPriceUnavailableError,
 } from '../domain/errors';
-import { CASH_INSTRUMENT_TYPE, NewOrder, PlacedOrder } from '../domain/order';
 import {
-  hasSufficientFunds,
-  parseOrderRequest,
-  resolveSize,
-} from '../domain/place-order';
+  CASH_INSTRUMENT_TYPE,
+  NewOrder,
+  PlaceOrderCommand,
+  PlacedOrder,
+} from '../domain/order';
+import { hasSufficientFunds, resolveSize } from '../domain/place-order';
 import {
   INSTRUMENT_REPOSITORY,
   InstrumentRepositoryPort,
@@ -36,56 +37,52 @@ export class PlaceOrderUseCase {
   /**
    * Places an order. MARKET orders execute immediately at the latest close (FILLED);
    * LIMIT orders are left NEW (the market is not simulated). Orders the user cannot
-   * afford are stored as REJECTED. Invalid requests are not stored (they throw).
+   * afford are stored as REJECTED. Requests that break a business rule are not stored
+   * (they throw).
    */
-  async execute(input: unknown): Promise<PlacedOrder> {
-    const request = parseOrderRequest(input);
-
-    const instrument = await this.instruments.findById(request.instrumentId);
-    if (!instrument) throw new InstrumentNotFoundError(request.instrumentId);
+  async execute(command: PlaceOrderCommand): Promise<PlacedOrder> {
+    const instrument = await this.instruments.findById(command.instrumentId);
+    if (!instrument) throw new InstrumentNotFoundError(command.instrumentId);
     if (instrument.type === CASH_INSTRUMENT_TYPE) {
       throw new InvalidOrderError('Cash cannot be traded');
     }
 
-    let price: number;
-    if (request.type === 'MARKET') {
-      const close = await this.marketPrices.findLatestClose(
-        request.instrumentId,
-      );
-      if (close === null) {
-        throw new MarketPriceUnavailableError(request.instrumentId);
-      }
-      price = close;
-    } else {
-      price = request.price as number;
-    }
+    const price =
+      command.type === 'LIMIT'
+        ? command.price
+        : await this.latestClose(command.instrumentId);
+    const size = resolveSize(command.quantity, price);
 
-    const size = resolveSize(request, price);
-
-    return this.placement.withUserLock(request.userId, async (ledger) => {
-      const entries = await ledger.findFilledEntries(request.userId);
+    return this.placement.withUserLock(command.userId, async (ledger) => {
+      const entries = await ledger.findFilledEntries(command.userId);
       const affordable = hasSufficientFunds(entries, {
-        instrumentId: request.instrumentId,
-        side: request.side,
+        instrumentId: command.instrumentId,
+        side: command.side,
         size,
         price,
       });
 
       const order: NewOrder = {
-        userId: request.userId,
-        instrumentId: request.instrumentId,
-        side: request.side,
-        type: request.type,
+        userId: command.userId,
+        instrumentId: command.instrumentId,
+        side: command.side,
+        type: command.type,
         size,
         price,
         status: !affordable
           ? 'REJECTED'
-          : request.type === 'MARKET'
+          : command.type === 'MARKET'
             ? 'FILLED'
             : 'NEW',
         datetime: new Date(),
       };
       return ledger.save(order);
     });
+  }
+
+  private async latestClose(instrumentId: number): Promise<number> {
+    const close = await this.marketPrices.findLatestClose(instrumentId);
+    if (close === null) throw new MarketPriceUnavailableError(instrumentId);
+    return close;
   }
 }

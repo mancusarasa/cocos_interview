@@ -1,24 +1,28 @@
-export type OrderType = 'MARKET' | 'LIMIT';
+export const ORDER_TYPES = ['MARKET', 'LIMIT'] as const;
+export type OrderType = (typeof ORDER_TYPES)[number];
+
 /** Sides a user can submit through the orders endpoint (CASH_IN/CASH_OUT are not exposed). */
-export type TradeSide = 'BUY' | 'SELL';
+export const TRADE_SIDES = ['BUY', 'SELL'] as const;
+export type TradeSide = (typeof TRADE_SIDES)[number];
+
 export type OrderStatus = 'NEW' | 'FILLED' | 'REJECTED' | 'CANCELLED';
 
 /** The instrument type used to model cash (ARS); it cannot be traded. */
 export const CASH_INSTRUMENT_TYPE = 'MONEDA';
 
-/** What the user asks for, already validated. */
-export interface OrderRequest {
+/** How much to trade: an exact number of shares, or the pesos to invest. */
+export type OrderQuantity = { size: number } | { amount: number };
+
+/**
+ * A validated request to place an order. MARKET orders carry no price (they execute at
+ * the latest close); LIMIT orders always carry one.
+ */
+export type PlaceOrderCommand = {
   userId: number;
   instrumentId: number;
   side: TradeSide;
-  type: OrderType;
-  /** Exact number of shares. Exactly one of `size` / `amount` is set. */
-  size?: number;
-  /** Total pesos to invest; the number of whole shares is derived from it. */
-  amount?: number;
-  /** Limit price. Only meaningful (and required) for LIMIT orders. */
-  price?: number;
-}
+  quantity: OrderQuantity;
+} & ({ type: 'MARKET' } | { type: 'LIMIT'; price: number });
 
 /** An order ready to be persisted. */
 export interface NewOrder {
