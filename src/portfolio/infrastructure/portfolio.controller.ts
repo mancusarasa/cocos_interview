@@ -1,10 +1,5 @@
-import {
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import { ParseIdPipe } from '../../common/validation/ids';
 import { GetPortfolioUseCase } from '../application/get-portfolio.use-case';
 import { UserNotFoundError } from '../domain/errors';
 import { Portfolio } from '../domain/portfolio';
@@ -15,7 +10,7 @@ export class PortfolioController {
 
   @Get(':userId/portfolio')
   async portfolio(
-    @Param('userId', ParseIntPipe) userId: number,
+    @Param('userId', ParseIdPipe) userId: number,
   ): Promise<Portfolio & { userId: number }> {
     try {
       const portfolio = await this.getPortfolio.execute(userId);

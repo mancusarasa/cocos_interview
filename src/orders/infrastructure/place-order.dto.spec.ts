@@ -66,7 +66,10 @@ describe('PlaceOrderDto', () => {
       ['missing userId', { ...market, userId: undefined }],
       ['non-integer userId', { ...market, userId: 1.5 }],
       ['string userId', { ...market, userId: '1' }],
+      ['zero userId', { ...market, userId: 0 }],
+      ['userId above INT4', { ...market, userId: 3_000_000_000 }],
       ['missing instrumentId', { ...market, instrumentId: undefined }],
+      ['instrumentId above INT4', { ...market, instrumentId: 3_000_000_000 }],
       ['unknown side', { ...market, side: 'HOLD' }],
       ['cash side', { ...market, side: 'CASH_IN' }],
       ['unknown type', { ...market, type: 'STOP' }],
@@ -106,6 +109,12 @@ describe('PlaceOrderDto', () => {
         ]);
       },
     );
+
+    it('explains the id range', async () => {
+      expect(
+        await messagesOf({ ...market, instrumentId: 3_000_000_000 }),
+      ).toEqual(['instrumentId must be an integer between 1 and 2147483647']);
+    });
 
     it('reports the type error first, one message per field', async () => {
       expect(await messagesOf({ ...market, size: 'abc', userId: '1' })).toEqual(
