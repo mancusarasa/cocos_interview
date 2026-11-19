@@ -16,20 +16,23 @@ services:
         required: false # only waits for the db when the local-db profile is active
 
   # Optional local Postgres. Start with: make up-local
+  # Throwaway local credentials, hardcoded on purpose: they must match the local
+  # DATABASE_URL (postgres://postgres:postgres@db:5432/cocos) and are only applied
+  # when the volume is first created (`make db-reset` to re-create it).
   db:
     image: postgres:16-alpine
     profiles: ["local-db"]
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-cocos}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cocos
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database.sql:/docker-entrypoint-initdb.d/database.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cocos}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cocos"]
       interval: 5s
       timeout: 3s
       retries: 10
