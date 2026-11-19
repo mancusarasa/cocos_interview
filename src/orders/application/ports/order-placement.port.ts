@@ -1,7 +1,7 @@
 import { LedgerEntry } from '../../../shared/ledger';
 import { NewOrder, PlacedOrder } from '../../domain/order';
 
-export const ORDER_PLACEMENT = Symbol('ORDER_PLACEMENT');
+export const ORDER_PLACEMENT = Symbol('orders/OrderPlacementPort');
 
 /** Operations available while the user's orders are locked. */
 export interface OrderLedger {

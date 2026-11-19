@@ -1,4 +1,4 @@
-export const INSTRUMENT_REPOSITORY = Symbol('ORDERS_INSTRUMENT_REPOSITORY');
+export const INSTRUMENT_REPOSITORY = Symbol('orders/InstrumentRepositoryPort');
 
 export interface InstrumentRepositoryPort {
   findById(id: number): Promise<{ id: number; type: string } | null>;

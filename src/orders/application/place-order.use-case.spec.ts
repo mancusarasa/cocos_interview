@@ -1,8 +1,8 @@
+import { UserNotFoundError } from '../../shared/errors';
 import {
   InstrumentNotFoundError,
   InvalidOrderError,
   MarketPriceUnavailableError,
-  UserNotFoundError,
 } from '../domain/errors';
 import { OrderQuantity, PlaceOrderCommand, TradeSide } from '../domain/order';
 import { buildFakes } from '../testing/in-memory-ports';

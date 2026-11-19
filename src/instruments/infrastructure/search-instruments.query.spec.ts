@@ -34,10 +34,12 @@ describe('SearchInstrumentsQueryDto', () => {
     const error = (await parse({ page: 'abc' }).catch(
       (e: unknown) => e,
     )) as BadRequestException;
-    expect((error.getResponse() as { message: string[] }).message).toEqual([
-      'search must be a string',
-      'page must be an integer number',
-    ]);
+    expect(error.getResponse()).toEqual({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Validation failed',
+      errors: ['search must be a string', 'page must be an integer number'],
+    });
   });
 
   it.each([

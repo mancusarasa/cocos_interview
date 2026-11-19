@@ -95,7 +95,12 @@ describe('PlaceOrderDto', () => {
       const error = (await parse(body).catch(
         (e: unknown) => e,
       )) as BadRequestException;
-      return (error.getResponse() as { message: string[] }).message;
+      const response = error.getResponse() as {
+        message: string;
+        errors: string[];
+      };
+      expect(response.message).toBe('Validation failed');
+      return response.errors;
     };
 
     it.each([

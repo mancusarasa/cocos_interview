@@ -8,7 +8,10 @@ import { PrismaInstrumentRepository } from './infrastructure/prisma-instrument.r
   controllers: [InstrumentsController],
   providers: [
     SearchInstrumentsUseCase,
-    { provide: INSTRUMENT_REPOSITORY, useClass: PrismaInstrumentRepository },
+    PrismaInstrumentRepository,
+    { provide: INSTRUMENT_REPOSITORY, useExisting: PrismaInstrumentRepository },
   ],
+  // Instrument persistence is owned by this feature; other features (orders) reuse it.
+  exports: [PrismaInstrumentRepository],
 })
 export class InstrumentsModule {}

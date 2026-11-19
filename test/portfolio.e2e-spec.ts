@@ -6,7 +6,8 @@ import { MARKET_DATA_REPOSITORY } from '../src/portfolio/application/ports/marke
 import { ORDER_REPOSITORY } from '../src/portfolio/application/ports/order.repository.port';
 import { USER_REPOSITORY } from '../src/portfolio/application/ports/user.repository.port';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { fakeOrders, prismaStub } from './stubs';
+import { fakeOrders } from '../src/portfolio/testing/fake-orders';
+import { prismaStub } from './stubs';
 
 describe('GET /users/:userId/portfolio (e2e)', () => {
   let app: INestApplication;

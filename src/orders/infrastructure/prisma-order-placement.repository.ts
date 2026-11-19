@@ -5,7 +5,7 @@ import {
   OrderLedger,
   OrderPlacementPort,
 } from '../application/ports/order-placement.port';
-import { UserNotFoundError } from '../domain/errors';
+import { UserNotFoundError } from '../../shared/errors';
 import { toPlacedOrder } from './order.mapper';
 
 @Injectable()

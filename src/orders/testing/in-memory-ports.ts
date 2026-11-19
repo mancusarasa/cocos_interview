@@ -6,7 +6,7 @@ import {
   OrderLedger,
   OrderPlacementPort,
 } from '../application/ports/order-placement.port';
-import { UserNotFoundError } from '../domain/errors';
+import { UserNotFoundError } from '../../shared/errors';
 import { NewOrder, PlacedOrder } from '../domain/order';
 
 /**

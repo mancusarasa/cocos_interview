@@ -28,10 +28,18 @@ describe('ParseIdPipe', () => {
     '3000000000',
     '99999999999999999999999',
   ])('rejects %p with a 400 naming the param', (value) => {
-    expect(() => parse(value)).toThrow(
-      new BadRequestException(
-        `orderId must be an integer between 1 and ${MAX_INT4}`,
-      ),
-    );
+    let error: unknown;
+    try {
+      parse(value);
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as BadRequestException).getResponse()).toEqual({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Validation failed',
+      errors: [`orderId must be an integer between 1 and ${MAX_INT4}`],
+    });
   });
 });

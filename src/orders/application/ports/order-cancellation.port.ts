@@ -1,6 +1,6 @@
 import { PlacedOrder } from '../../domain/order';
 
-export const ORDER_CANCELLATION = Symbol('ORDER_CANCELLATION');
+export const ORDER_CANCELLATION = Symbol('orders/OrderCancellationPort');
 
 export interface OrderCancellationPort {
   /**

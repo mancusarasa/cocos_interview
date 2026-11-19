@@ -80,8 +80,25 @@ src/<feature>/
   <feature>.module.ts   wires ports to adapters ({ provide: TOKEN, useClass: PrismaXRepository })
 ```
 
-`src/prisma/` is the shared PrismaClient provider. Tests: the domain and use cases are unit-tested without
-Nest/DB; e2e tests override `PrismaService` and the repository tokens with in-memory fakes.
+Shared code outside the features:
+- `src/shared/`: framework-free concepts used by several features (ledger math, domain error categories,
+  `CASH_INSTRUMENT_TYPE`, column limits). Same ESLint restrictions as `domain/`.
+- `src/common/`: Nest-specific building blocks (validation pipes and decorators, the HTTP exception filter).
+- `src/prisma/`: the shared PrismaClient provider. `src/market-data/`: the single market-price adapter.
+
+Ports come in two styles:
+- **Repository ports** for reads (`UserRepositoryPort.exists`, `OrderRepositoryPort.findFilledByUserId`,
+  `MarketDataRepositoryPort.findLatestCloses`, ...).
+- **Action ports** when a use case needs an atomic write (`OrderPlacementPort.withUserLock`,
+  `OrderCancellationPort.cancelIfNew`): the transaction lives in the adapter, the rules stay in the use case.
+
+Each feature declares its own ports, even when one adapter serves several features: the instruments feature owns
+instrument persistence and `src/market-data/` owns market prices, and other features bind their ports to those adapters
+with `{ provide: TOKEN, useExisting: Adapter }`. Tokens are `Symbol('<feature>/<PortName>')`.
+
+Tests: the domain and use cases are unit-tested without Nest/DB, using in-memory fakes from `src/<feature>/testing/`
+(excluded from the build); e2e tests boot `AppModule`, replace `PrismaService` with `test/stubs.ts` and override the
+port tokens with those fakes.
 
 Request validation is an adapter concern: each controller receives a DTO class (`infrastructure/*.dto.ts`,
 `*.query.ts`) validated by class-validator through the pipes in `src/common/validation/`, and maps it to a typed
@@ -89,9 +106,29 @@ command for the use case (e.g. `PlaceOrderCommand`, a discriminated union where 
 orders always have one). Use cases and the domain never see raw input; they only enforce business rules.
 ESLint forbids `class-validator` / `class-transformer` imports in `domain/` and `application/`.
 
-Invalid input returns `400` in the `ValidationPipe` format, with one message per field:
-`{ "statusCode": 400, "error": "Bad Request", "message": ["size must be an integer number"] }`. Unknown body fields are
-rejected (`property foo should not exist`); unknown query params are ignored.
+### Errors
+
+Use cases throw domain errors from `src/shared/errors.ts`; each one extends a category, and `DomainExceptionFilter`
+(`src/common/http/`, registered once with `APP_FILTER`) maps the category to the HTTP status, so controllers contain no
+error handling:
+
+| Category | Status | Examples |
+|---|---|---|
+| `InvalidRequestError` | 400 | `InvalidOrderError` (cash instrument, amount too small for one share) |
+| `NotFoundError` | 404 | `UserNotFoundError`, `InstrumentNotFoundError`, `OrderNotFoundError` |
+| `ConflictError` | 409 | `OrderNotCancellableError` |
+| `UnprocessableError` | 422 | `MarketPriceUnavailableError` |
+
+Every error has the same shape: `message` is always a single string. Invalid input (DTO validation or an invalid id)
+also lists one problem per field in `errors`:
+
+```json
+{ "statusCode": 409, "error": "Conflict", "message": "Order 2 is FILLED; only NEW orders can be cancelled" }
+{ "statusCode": 400, "error": "Bad Request", "message": "Validation failed",
+  "errors": ["instrumentId must be an integer between 1 and 2147483647"] }
+```
+
+Unknown body fields are rejected (`property foo should not exist`); unknown query params are ignored.
 
 Ids (`userId`, `instrumentId`, `orderId`, in route params or bodies) must be integers between 1 and 2147483647, the range
 of the Postgres `INT4`/`SERIAL` columns: anything else is a `400` (`ParseIdPipe` for params, `@IsId()` in DTOs), rather

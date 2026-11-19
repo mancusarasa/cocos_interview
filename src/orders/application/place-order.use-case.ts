@@ -4,12 +4,8 @@ import {
   InvalidOrderError,
   MarketPriceUnavailableError,
 } from '../domain/errors';
-import {
-  CASH_INSTRUMENT_TYPE,
-  NewOrder,
-  PlaceOrderCommand,
-  PlacedOrder,
-} from '../domain/order';
+import { CASH_INSTRUMENT_TYPE } from '../../shared/instruments';
+import { NewOrder, PlaceOrderCommand, PlacedOrder } from '../domain/order';
 import { hasSufficientFunds, resolveSize } from '../domain/place-order';
 import {
   INSTRUMENT_REPOSITORY,

@@ -1,6 +1,8 @@
 import { Instrument } from '../../domain/instrument';
 
-export const INSTRUMENT_REPOSITORY = Symbol('INSTRUMENT_REPOSITORY');
+export const INSTRUMENT_REPOSITORY = Symbol(
+  'instruments/InstrumentRepositoryPort',
+);
 
 export interface SearchTradableParams {
   /** Already trimmed and non-empty. */

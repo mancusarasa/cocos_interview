@@ -1,8 +1,7 @@
+import { CASH_INSTRUMENT_TYPE } from '../../shared/instruments';
 import { availableCash, round2 } from '../../shared/ledger';
 import { FilledOrder } from './filled-order';
 import { Portfolio, Position } from './portfolio';
-
-export const CASH_INSTRUMENT_TYPE = 'MONEDA';
 
 export interface PortfolioCalculation {
   portfolio: Portfolio;

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { UserNotFoundError } from '../domain/errors';
+import { UserNotFoundError } from '../../shared/errors';
 import { Portfolio } from '../domain/portfolio';
 import { calculatePortfolio } from '../domain/portfolio-calculator';
 import {
