@@ -3,7 +3,7 @@ import { ParseIdPipe } from '../../common/validation/ids';
 import { bodyValidationPipe } from '../../common/validation/validation-pipes';
 import { CancelOrderUseCase } from '../application/cancel-order.use-case';
 import { PlaceOrderUseCase } from '../application/place-order.use-case';
-import { PlacedOrder } from '../domain/order';
+import { OrderResponse } from './order.response';
 import { PlaceOrderDto, toPlaceOrderCommand } from './place-order.dto';
 
 /** Domain errors are turned into 400/404/409/422 by DomainExceptionFilter. */
@@ -16,8 +16,11 @@ export class OrdersController {
 
   /** 201 with the stored order, also when it ends up REJECTED (see `status`). */
   @Post()
-  create(@Body(bodyValidationPipe) dto: PlaceOrderDto): Promise<PlacedOrder> {
-    return this.placeOrder.execute(toPlaceOrderCommand(dto));
+  async create(
+    @Body(bodyValidationPipe) dto: PlaceOrderDto,
+  ): Promise<OrderResponse> {
+    const order = await this.placeOrder.execute(toPlaceOrderCommand(dto));
+    return OrderResponse.from(order);
   }
 
   /**
@@ -25,7 +28,9 @@ export class OrdersController {
    * and returned (200). 404 if it does not exist, 409 if it is not NEW.
    */
   @Delete(':orderId')
-  cancel(@Param('orderId', ParseIdPipe) orderId: number): Promise<PlacedOrder> {
-    return this.cancelOrder.execute(orderId);
+  async cancel(
+    @Param('orderId', ParseIdPipe) orderId: number,
+  ): Promise<OrderResponse> {
+    return OrderResponse.from(await this.cancelOrder.execute(orderId));
   }
 }

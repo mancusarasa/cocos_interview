@@ -18,7 +18,8 @@ make down         # stop everything
 make db-reset     # wipe the local DB volume (re-seeds on next up-local)
 ```
 
-The API listens on http://localhost:3000 (`GET /health`).
+The API listens on http://localhost:3000. `GET /health` returns `200 { "status": "ok" }` when the API can reach
+Postgres and `503` otherwise (it runs `SELECT 1`), so it can back a Docker/Kubernetes health check.
 
 Other commands (all run inside containers):
 
@@ -105,6 +106,9 @@ Request validation is an adapter concern: each controller receives a DTO class (
 command for the use case (e.g. `PlaceOrderCommand`, a discriminated union where MARKET orders have no price and LIMIT
 orders always have one). Use cases and the domain never see raw input; they only enforce business rules.
 ESLint forbids `class-validator` / `class-transformer` imports in `domain/` and `application/`.
+
+Responses are explicit classes too (`infrastructure/*.response.ts`, e.g. `OrderResponse.from(order)`): controllers never
+return domain objects, so changing a domain type cannot silently change the API contract.
 
 ### Errors
 
@@ -201,6 +205,7 @@ Submits a BUY or SELL order. Body:
 - `price` (> 0, at most 2 decimals) is required for `LIMIT` and ignored for `MARKET`.
 
 Response `201` with the stored order (`id`, `userId`, `instrumentId`, `side`, `type`, `size`, `price`, `status`, `datetime`).
+`datetime` is an ISO 8601 string in UTC (see "Dates and times" below).
 Errors: `400` invalid input (including both/neither of `size`|`amount`, an `amount` too small for one share, trading the
 cash instrument), `404` unknown user or instrument, `422` MARKET order for an instrument without market data.
 
@@ -235,3 +240,16 @@ Cancels an order whose status is `NEW` (a LIMIT order waiting for its price).
 - `NEW` orders do not reserve cash or shares, so cancelling one does not change the user's portfolio.
 - Known limitation: there is no authentication (per the challenge), so any caller can cancel any order by id, the
   same trust model as `POST /orders`, which takes the `userId` from the body.
+
+## Dates and times
+
+`orders.datetime` is a `TIMESTAMP` column without time zone (kept as provided in `database.sql`). Its values are
+**UTC**: the API stores `new Date()` in UTC and returns `datetime` as an ISO 8601 string with `Z`. The seed rows in
+`database.sql` carry no time zone either and are assumed to be UTC as well.
+
+## Runtime notes
+
+- `PORT` is read through Nest's `ConfigService` (default `3000`); Prisma reads `DATABASE_URL` directly. For a
+  provider that requires SSL, append `?sslmode=require` to `DATABASE_URL`.
+- `app.enableShutdownHooks()` is on, so on `SIGTERM`/`SIGINT` (e.g. `docker stop`) Nest runs the `onModuleDestroy`
+  hooks and Prisma disconnects cleanly.

@@ -5,4 +5,6 @@
 export const prismaStub = {
   $connect: async () => undefined,
   $disconnect: async () => undefined,
+  // Answers the health check's `SELECT 1`.
+  $queryRaw: async () => [{ '?column?': 1 }],
 };

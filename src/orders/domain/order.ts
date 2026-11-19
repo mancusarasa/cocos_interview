@@ -1,3 +1,5 @@
+import { OrderSide } from '../../shared/ledger';
+
 export const ORDER_TYPES = ['MARKET', 'LIMIT'] as const;
 export type OrderType = (typeof ORDER_TYPES)[number];
 
@@ -34,7 +36,12 @@ export interface NewOrder {
   datetime: Date;
 }
 
-export interface PlacedOrder extends Omit<NewOrder, 'status'> {
+/**
+ * An order stored in the database. Orders placed through the API are BUY/SELL, but one
+ * read back by id can also be a cash movement (CASH_IN/CASH_OUT), hence `OrderSide`.
+ */
+export interface PlacedOrder extends Omit<NewOrder, 'status' | 'side'> {
   id: number;
+  side: OrderSide;
   status: OrderStatus;
 }
