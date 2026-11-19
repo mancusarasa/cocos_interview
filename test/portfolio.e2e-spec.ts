@@ -56,4 +56,10 @@ describe('GET /users/:userId/portfolio (e2e)', () => {
 
   it('returns 400 for a non-numeric user id', () =>
     request(app.getHttpServer()).get('/users/abc/portfolio').expect(400));
+
+  it.each(['0', '3000000000'])(
+    'returns 400 for a user id out of the INT4 range (%s)',
+    (id) =>
+      request(app.getHttpServer()).get(`/users/${id}/portfolio`).expect(400),
+  );
 });

@@ -93,6 +93,10 @@ Invalid input returns `400` in the `ValidationPipe` format, with one message per
 `{ "statusCode": 400, "error": "Bad Request", "message": ["size must be an integer number"] }`. Unknown body fields are
 rejected (`property foo should not exist`); unknown query params are ignored.
 
+Ids (`userId`, `instrumentId`, `orderId`, in route params or bodies) must be integers between 1 and 2147483647, the range
+of the Postgres `INT4`/`SERIAL` columns: anything else is a `400` (`ParseIdPipe` for params, `@IsId()` in DTOs), rather
+than reaching the database and failing there.
+
 ## `GET /users/:userId/portfolio`
 
 Returns `userId`, `totalValue`, `availableCash` and `positions[]` (`instrumentId`, `ticker`, `name`, `quantity`,

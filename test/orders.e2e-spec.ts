@@ -123,6 +123,26 @@ describe('POST /orders (e2e)', () => {
       { userId: 1, instrumentId: 66, side: 'BUY', type: 'MARKET', size: 1 },
     ],
     [
+      'instrumentId above INT4',
+      {
+        userId: 1,
+        instrumentId: 3_000_000_000,
+        side: 'BUY',
+        type: 'MARKET',
+        size: 1,
+      },
+    ],
+    [
+      'userId above INT4',
+      {
+        userId: 3_000_000_000,
+        instrumentId: 47,
+        side: 'BUY',
+        type: 'MARKET',
+        size: 1,
+      },
+    ],
+    [
       'amount too small',
       { userId: 1, instrumentId: 47, side: 'BUY', type: 'MARKET', amount: 1 },
     ],
@@ -216,5 +236,7 @@ describe('POST /orders (e2e)', () => {
     it('404: unknown order', () => del(999).expect(404));
 
     it('400: non-numeric id', () => del('abc').expect(400));
+
+    it('400: id out of the INT4 range', () => del('3000000000').expect(400));
   });
 });

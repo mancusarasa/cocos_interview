@@ -4,11 +4,12 @@ import {
   netQuantity,
   round2,
 } from '../../shared/ledger';
+import { MAX_INT4 } from '../../shared/limits';
 import { InvalidOrderError } from './errors';
 import { OrderQuantity, TradeSide } from './order';
 
 // Column limits in database.sql: size INT, price NUMERIC(10,2).
-export const MAX_SIZE = 2_147_483_647;
+export const MAX_SIZE = MAX_INT4;
 export const MAX_PRICE = 99_999_999.99;
 
 /**

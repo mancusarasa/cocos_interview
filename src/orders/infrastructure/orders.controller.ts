@@ -6,10 +6,10 @@ import {
   Delete,
   NotFoundException,
   Param,
-  ParseIntPipe,
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ParseIdPipe } from '../../common/validation/ids';
 import { bodyValidationPipe } from '../../common/validation/validation-pipes';
 import { CancelOrderUseCase } from '../application/cancel-order.use-case';
 import { PlaceOrderUseCase } from '../application/place-order.use-case';
@@ -61,7 +61,7 @@ export class OrdersController {
    */
   @Delete(':orderId')
   async cancel(
-    @Param('orderId', ParseIntPipe) orderId: number,
+    @Param('orderId', ParseIdPipe) orderId: number,
   ): Promise<PlacedOrder> {
     try {
       return await this.cancelOrder.execute(orderId);

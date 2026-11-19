@@ -7,6 +7,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { ExactlyOneOf } from '../../common/validation/exactly-one-of';
+import { IsId } from '../../common/validation/ids';
 import {
   ORDER_TYPES,
   OrderQuantity,
@@ -22,12 +23,10 @@ import { MAX_PRICE, MAX_SIZE } from '../domain/place-order';
  * Decorators run bottom-up: the type check is listed last so it is reported first.
  */
 export class PlaceOrderDto {
-  @IsPositive()
-  @IsInt()
+  @IsId()
   userId!: number;
 
-  @IsPositive()
-  @IsInt()
+  @IsId()
   instrumentId!: number;
 
   @IsIn(TRADE_SIDES)
