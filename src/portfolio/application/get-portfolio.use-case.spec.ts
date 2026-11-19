@@ -1,4 +1,4 @@
-import { UserNotFoundError } from '../domain/errors';
+import { UserNotFoundError } from '../../shared/errors';
 import { FilledOrder } from '../domain/filled-order';
 import { GetPortfolioUseCase } from './get-portfolio.use-case';
 

@@ -239,4 +239,82 @@ describe('POST /orders (e2e)', () => {
 
     it('400: id out of the INT4 range', () => del('3000000000').expect(400));
   });
+
+  describe('error bodies (one shape for every status)', () => {
+    const order = {
+      userId: 1,
+      instrumentId: 47,
+      side: 'BUY',
+      type: 'MARKET',
+      size: 1,
+    };
+
+    it('400 validation (DTO): message + errors', async () => {
+      const res = await post({ ...order, size: 1, amount: 5 }).expect(400);
+      expect(res.body).toEqual({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Validation failed',
+        errors: ['exactly one of size, amount must be provided'],
+      });
+    });
+
+    it('400 validation (id param): message + errors', async () => {
+      const res = await request(app.getHttpServer())
+        .delete('/orders/0')
+        .expect(400);
+      expect(res.body).toEqual({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Validation failed',
+        errors: ['orderId must be an integer between 1 and 2147483647'],
+      });
+    });
+
+    it.each([
+      [
+        'domain 400',
+        { ...order, instrumentId: 66 },
+        400,
+        'Bad Request',
+        'Cash cannot be traded',
+      ],
+      [
+        '404 user',
+        { ...order, userId: 999 },
+        404,
+        'Not Found',
+        'User 999 not found',
+      ],
+      [
+        '404 instrument',
+        { ...order, instrumentId: 999 },
+        404,
+        'Not Found',
+        'Instrument 999 not found',
+      ],
+      [
+        '422',
+        { ...order, instrumentId: 7 },
+        422,
+        'Unprocessable Entity',
+        'No market price available for instrument 7',
+      ],
+    ])('%s: message only', async (_name, body, statusCode, error, message) => {
+      const res = await post(body).expect(statusCode);
+      expect(res.body).toEqual({ statusCode, error, message });
+    });
+
+    it('409: message only', async () => {
+      const placed = await post(order).expect(201);
+      const res = await request(app.getHttpServer())
+        .delete(`/orders/${placed.body.id}`)
+        .expect(409);
+      expect(res.body).toEqual({
+        statusCode: 409,
+        error: 'Conflict',
+        message: `Order ${placed.body.id} is FILLED; only NEW orders can be cancelled`,
+      });
+    });
+  });
 });

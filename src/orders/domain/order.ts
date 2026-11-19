@@ -7,9 +7,6 @@ export type TradeSide = (typeof TRADE_SIDES)[number];
 
 export type OrderStatus = 'NEW' | 'FILLED' | 'REJECTED' | 'CANCELLED';
 
-/** The instrument type used to model cash (ARS); it cannot be traded. */
-export const CASH_INSTRUMENT_TYPE = 'MONEDA';
-
 /** How much to trade: an exact number of shares, or the pesos to invest. */
 export type OrderQuantity = { size: number } | { amount: number };
 

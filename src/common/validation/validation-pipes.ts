@@ -1,4 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
+import { flattenValidationErrors, validationFailed } from './validation-failed';
 
 // `stopAtFirstError`: one message per field. class-validator runs a property's
 // decorators bottom-up, so DTOs list the basic type check last (it runs first).
@@ -12,6 +13,8 @@ export const bodyValidationPipe = new ValidationPipe({
   forbidNonWhitelisted: true,
   transform: true,
   stopAtFirstError: true,
+  exceptionFactory: (errors) =>
+    validationFailed(flattenValidationErrors(errors)),
 });
 
 /**
@@ -22,4 +25,6 @@ export const queryValidationPipe = new ValidationPipe({
   whitelist: true,
   transform: true,
   stopAtFirstError: true,
+  exceptionFactory: (errors) =>
+    validationFailed(flattenValidationErrors(errors)),
 });
